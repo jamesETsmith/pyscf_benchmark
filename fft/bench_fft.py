@@ -3,58 +3,44 @@ import time
 import numpy as np
 import pandas as pd
 from importlib import reload
+import pyscf
+from pyscf import __config__
+from pyscf.pbc import tools
+
 
 ALLOWED_ENGINES = ["FFTW", "NUMPY", "NUMPY+BLAS", "BLAS"]
-SYSTEMS = {
-    "small": {"atom": "He 0 0 0; He 0.75 0 0;", "basis": "gth-dzvp"},
-    "medium": {"atom": "Ne 0 0 0; Ne 0.75 0 0;", "basis": "gth-tzvp"},
-    "large": {"atom": "Ar 0 0 0; Ar 0.75 0 0;", "basis": "gth-tzvp"},
-}
+N_SIZE = 600
 
 
 def bench_fft_engine(method: str):
 
+    # Check inputs (in case this is used as solo)
     if method not in ALLOWED_ENGINES:
         msg = f"{method} is not an allowd FFT engine ({ALLOWED_ENGINES})"
         raise ValueError(msg)
 
-    import pyscf
-    from pyscf import __config__
-
+    # Set the engine
     __config__.pbc_tools_pbc_fft_engine = method
+    reload(pyscf.pbc.tools.pbc)  # reload so we see updated config
 
-    from pyscf.pbc import gto, scf
-
-    reload(pyscf.pbc.tools.pbc)
-
-    atom = "Ar 0 0 0; Ar 0.75 0 0"
-    a = np.eye(3) * 3
-    basis = "gth-tzvp"
-    pseudo = "gth-pade"
-
-    cell = gto.Cell(atom=atom, a=a, basis=basis, pseudo=pseudo)
-    cell.mesh = [21, 21, 21]
-    cell.build()
-    cell.verbose = 0
-
-    kmesh = [2, 2, 1]
-    kpts = cell.make_kpts(kmesh)
-
-    # Time SCF
+    # Time FFT
     _t0 = time.perf_counter()
 
-    mf = scf.KRHF(cell, kpts)
-    mf.kernel()
+    a = np.random.random([2, N_SIZE, N_SIZE, N_SIZE])
+    tools.fft(a, [N_SIZE, N_SIZE, N_SIZE])
 
     total_time = time.perf_counter() - _t0
-    print(f"SCF TIME {total_time}")
-    del gto, scf
+    print(f"FFT TIME {total_time}")
+
     return total_time
 
 
 def bench_all_fft_engines():
-    filename = "bench_fft_data.csv"
+    # Setup data directory
+    os.makedirs("_data", exist_ok=True)
+    filename = "_data/bench_fft_data.csv"
 
+    # Read in old data so we can append if necessary
     if os.path.exists(filename):
         data = pd.read_csv(filename).to_dict(orient="list")
         print(data)
@@ -65,6 +51,7 @@ def bench_all_fft_engines():
             "OMP_NUM_THREADS": [],
         }
 
+    # Iterate through all engines
     for eng in ALLOWED_ENGINES:
         total_time = bench_fft_engine(eng)
         data["FFT Engine"].append(eng)
@@ -77,6 +64,7 @@ def bench_all_fft_engines():
 
 
 if __name__ == "__main__":
+    # For debugging
     # bench_fft_engine("FFTW")
     # bench_fft_engine("NUMPY")
     # bench_fft_engine("NUMPY+BLAS")
