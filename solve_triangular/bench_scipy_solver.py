@@ -7,11 +7,7 @@ from scipy.linalg import solve_triangular, solve
 ALLOWED_SOLVERS = ["general", "hermitian", "symmetric", "triangular"]
 
 
-def _bench_single_solver(size: int, method: str):
-    # Setup problem
-    a = np.random.rand(size, size)
-    a = a + a.T
-    b = np.random.rand(size)
+def _bench_single_solver(size: int, method: str, a: np.ndarray, b: np.ndarray):
 
     # Run benchmark
     _t0 = time.perf_counter()
@@ -32,6 +28,11 @@ def bench_scipy_solver(size: int):
     os.makedirs("_data", exist_ok=True)
     filename = "_data/bench_solver_data.csv"
 
+    # Setup problem
+    a = np.random.rand(size, size)
+    a = a + a.T
+    b = np.random.rand(size)
+
     if os.path.exists(filename):
         data = pd.read_csv(filename)
         print(data)
@@ -40,7 +41,7 @@ def bench_scipy_solver(size: int):
         data = {"Time (s)": [], "OMP_NUM_THREADS": [], "Matrix Size": [], "Method": []}
 
     for solver in ALLOWED_SOLVERS:
-        t_solve = _bench_single_solver(size, solver)
+        t_solve = _bench_single_solver(size, solver, a.copy(), b.copy())
         data["Time (s)"].append(t_solve)
         data["Matrix Size"].append(size)
         data["OMP_NUM_THREADS"].append(int(os.environ["OMP_NUM_THREADS"]))
