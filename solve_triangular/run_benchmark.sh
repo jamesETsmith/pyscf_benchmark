@@ -2,7 +2,7 @@
 
 rm -f _data/bench_solver_data.csv
 
-N_REPEAT=1
+N_REPEAT=10
 SIZE=15000
 
 for NTHREADS in 1 2 4 8 16
